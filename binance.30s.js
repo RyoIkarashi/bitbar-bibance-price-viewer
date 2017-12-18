@@ -53,15 +53,27 @@ const mergeCoinInfo = (ticker, volatilities) =>
 const getBTCUSD = (ticker) => ticker.filter(coin => coin.symbol === BTC_SYMBOL)[0];
 const getBTCJPY = (yen, BTCUSD) => BTCUSD * yen;
 const getVolatilities = () => binance.get24hrTicker(); 
-const getSortedCoins = (coins) => {
- const compare = (a, b) => {
-   const A = a.symbol.toUpperCase();
-   const B = b.symbol.toUpperCase();
+const getSortedCoins = (coins, key = 'symbol', order = 'asc') => {
+ const compareByProp = (a, b) => {
+   if(!a.hasOwnProperty(key) || !b.hasOwnProperty(key)) return 0;
 
-   return A > B ? 1 : -1;
+   const A = (typeof a[key] === 'string') ? a[key].toUpperCase() : a[key];
+   const B = (typeof b[key] === 'string') ? b[key].toUpperCase() : b[key];
+  
+   let comparison = 0;
+   if(A > B) {
+     comparison = 1;
+   } else if (A < B) {
+     comparison = -1;
+   }
+
+   return (order === 'desc') ? comparison * -1 : comparison; 
  };
- return coins.sort(compare);
+ return coins.sort(compareByProp);
 };
+
+const getTop5Coins = (coins) => getSortedCoins(coins, 'priceChangePercent', 'desc').slice(0, 5);
+const getWorst5Coins = (coins) => getSortedCoins(coins, 'priceChangePercent').slice(0, 5);
 
 const getBitbarContent = (coins) =>
   coins.map((coin, index) => {
@@ -85,9 +97,18 @@ axios.all([getAccountInfo(), getTicker(), getVolatilities(), getLatestYenPerUSD(
     const tickerWithJPY = getTickerWithJPY(coinsWithBTC, btcusd, yen);
     const coins = getSortedCoins(mergeCoinInfo(tickerWithJPY, volatilities.data));
     const contents = getBitbarContent(coins);
+    const top5Contents = getBitbarContent(getTop5Coins(coins));
+    const worst5Contents = getBitbarContent(getWorst5Coins(coins));
     bitbar([
       'Bibance Prices',
       bitbar.sep,
+      'TOP 5',
+      ...top5Contents,
+      bitbar.sep,
+      'BOTTOM 5',
+      ...worst5Contents,
+      bitbar.sep,
+      'ALL COINS',
       ...contents,
     ]);
  }));
