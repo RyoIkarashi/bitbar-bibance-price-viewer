@@ -53,7 +53,7 @@ const getBTCUSD = (ticker) => ticker.filter(coin => coin.symbol === 'BTCUSDT')[0
 const getBTCJPY = (yen, BTCUSD) => BTCUSD * yen;
 const getVolatilities = () => binance.get24hrTicker(); 
 
-const getBitbarContent = (coins) => 
+const getBitbarContent = (coins) =>
   coins.map((coin, index) => {
     const { symbol, price, priceChangePercent } = coin;
     return {
@@ -62,6 +62,8 @@ const getBitbarContent = (coins) =>
       href: `https://www.binance.com/trade.html?symbol=${symbol}_BTC`,
     }
   });
+
+process.on('unhandledRejection', console.dir);
 
 axios.all([getAccountInfo(), getTicker(), getVolatilities(), getLatestYenPerUSD()])
   .then(axios.spread((rates, ticker, volatilities, rate) => {
@@ -73,7 +75,6 @@ axios.all([getAccountInfo(), getTicker(), getVolatilities(), getLatestYenPerUSD(
     const tickerWithJPY = getTickerWithJPY(coinsWithBTC, btcusd, yen);
     const coins = mergeCoinInfo(tickerWithJPY, volatilities.data);
     const contents = getBitbarContent(coins);
-    console.log(yen);
     bitbar([
       'Bibance Prices',
       bitbar.sep,
