@@ -26,14 +26,15 @@ binance.init({
 });
 
 const BASE_RATE = 'USD';
+const BTC_SYMBOL = 'BTCUSDT';
 const RATE_API_URL = `https://api.fixer.io/latest?base=${BASE_RATE}`;
 const getAccountInfo = () => binance.getAccountInfo({timestamp: Date.now()});
 const getTicker = () => binance.getTicker();
-const getCoinsWithBTC = (ticker) => ticker.filter(coin => coin.symbol.match(/BTC$/));
+const getCoinsWithBTC = (ticker) => ticker.filter(coin => coin.symbol.match(/BTC$/) || coin.symbol === BTC_SYMBOL);
 const getLatestYenPerUSD = () => axios.get(RATE_API_URL);
 const getTickerWithJPY = (ticker, btcusd, yen) => ticker.map(coin => {
   let newCoin = Object.assign({}, coin);
-  newCoin.price = newCoin.price * btcusd * yen;
+  newCoin.price = coin.symbol !== BTC_SYMBOL ? newCoin.price * btcusd * yen : newCoin.price * yen;
   return newCoin;
 });
 const mergeCoinInfo = (ticker, volatilities) => 
@@ -43,15 +44,24 @@ const mergeCoinInfo = (ticker, volatilities) =>
       if(coin.symbol === vola.symbol) {
         newCoin = Object.assign({}, coin);
         newCoin.priceChangePercent = Number(vola.priceChangePercent);
-        newCoin.symbol = coin.symbol.replace(/BTC$/, '');
+        newCoin.symbol = coin.symbol.replace(/BTC$/, '').replace(/USDT$/, '');
       }
     });
     return newCoin;
   });
 
-const getBTCUSD = (ticker) => ticker.filter(coin => coin.symbol === 'BTCUSDT')[0];
+const getBTCUSD = (ticker) => ticker.filter(coin => coin.symbol === BTC_SYMBOL)[0];
 const getBTCJPY = (yen, BTCUSD) => BTCUSD * yen;
 const getVolatilities = () => binance.get24hrTicker(); 
+const getSortedCoins = (coins) => {
+ const compare = (a, b) => {
+   const A = a.symbol.toUpperCase();
+   const B = b.symbol.toUpperCase();
+
+   return A > B ? 1 : -1;
+ };
+ return coins.sort(compare);
+};
 
 const getBitbarContent = (coins) =>
   coins.map((coin, index) => {
@@ -73,7 +83,7 @@ axios.all([getAccountInfo(), getTicker(), getVolatilities(), getLatestYenPerUSD(
     const coinsWithBTC = getCoinsWithBTC(ticker);
     const BTCJPY = getBTCJPY(yen, btcusd);
     const tickerWithJPY = getTickerWithJPY(coinsWithBTC, btcusd, yen);
-    const coins = mergeCoinInfo(tickerWithJPY, volatilities.data);
+    const coins = getSortedCoins(mergeCoinInfo(tickerWithJPY, volatilities.data));
     const contents = getBitbarContent(coins);
     bitbar([
       'Bibance Prices',
